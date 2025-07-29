@@ -22,7 +22,7 @@ jobs:
         run: npm install
 
       - name: Build with ncc
-        run: npx rollup --config rollup.config.js
+        run: npx ncc build src/index.js -o dist
 
       - name: Get current timestamp tag
         id: tag
