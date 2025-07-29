@@ -10,7 +10,7 @@ async function getToken(senha){
     "Content-Type": "application/json" 
     }
 
-    let bodyContent = JSON.stringify({"username":"admin","password":"NC3m8MoIaZ7li8ln"});
+    let bodyContent = JSON.stringify({"username":"admin","password":senha});
 
     let reqOptions = {
     url: "https://humix.blgianini.com:30443/api/v1/session",
@@ -21,7 +21,7 @@ async function getToken(senha){
 
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
     let response = await axios.request(reqOptions);
-    return response.data
+    return response.data.token
 }
 
 try {
