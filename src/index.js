@@ -24,8 +24,27 @@ async function getToken(senha){
     return response.data.token
 }
 
+async function getAppByName(nome, token){
+  let headersList = {
+  "Accept": "*/*",
+  "User-Agent": "Thunder Client (https://www.thunderclient.com)",
+  "Authorization": "Bearer " + token
+  }
+
+  let reqOptions = {
+    url: "https://humix.blgianini.com:30443/api/v1/applications/" + nome,
+    method: "GET",
+    headers: headersList,
+  }
+
+  let response = await axios.request(reqOptions);
+  return response.data
+}
+
 try {
-  core.info(await getToken(core.getInput("token-argocd")))
+  const token = core.info(await getToken(core.getInput("token-argocd")))
+
+  core.info(await getAppByName(core.getInput("nome-aplicacao", token)))
 
   // Get the current time and set it as an output variable
   const time = new Date().toTimeString();
