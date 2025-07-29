@@ -10,7 +10,7 @@ async function getToken(senha){
     "Content-Type": "application/json" 
     }
 
-    let bodyContent = JSON.stringify({"username":"admin","password":senha});
+    let bodyContent = JSON.stringify({"username":"admin","password":"NC3m8MoIaZ7li8ln"});
 
     let reqOptions = {
     url: "https://humix.blgianini.com:30443/api/v1/session",
