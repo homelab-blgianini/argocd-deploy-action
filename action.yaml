@@ -2,10 +2,13 @@ name: Hello World
 description: Greet someone and record the time
 
 inputs:
-  who-to-greet: 
-    description: Who to greet
+  nome-aplicacao: 
+    description: Nome da aplicação que vai fazer deploy
     required: true
     default: World
+
+  token-argocd:
+    description: Token de autenticação para o argocd
 
 outputs:
   time: 
