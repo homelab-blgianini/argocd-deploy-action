@@ -92,6 +92,11 @@ async function checkApplicationExists(server, token, applicationName) {
     }
 
     if (error.response?.status === 403) {
+      core.info('🔄 Aplicação não encontrada (403). Será criada.');
+      return false;
+    }
+
+    if (error.response?.status === 403) {
       core.error(`🚫 Permissão negada ao acessar aplicação '${applicationName}'`);
       core.error(`Resposta: ${JSON.stringify(error.response.data)}`);
     }
