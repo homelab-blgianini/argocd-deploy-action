@@ -1,114 +1,163 @@
-import * as core from "@actions/core"
-import * as github from "@actions/github"
-import https from "https"
-import { exec } from "child_process"
-import { promisify } from "util"
+const core = require('@actions/core');
+const axios = require('axios');
 
-const execAsync = promisify(exec)
+async function run() {
+  try {
+    // Obter inputs da action
+    const nomeAplicacao = core.getInput('nome-aplicacao');
+    const argocdServer = "https://humix.blgianini.com:30443/api/v1/";
+    const argocdUsername = "admin";
+    const argocdPassword = "NC3m8MoIaZ7li8ln";
+    const namespace = core.getInput('namespace') || 'default';
+    core.info(`Iniciando processo para aplicação: ${nomeAplicacao}`);
+    core.info(`Servidor ArgoCD: ${argocdServer}`);
 
-// Configure to ignore SSL certificates (only for development)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
-const API_BASE_URL = "https://humix.blgianini.com:30443/api/v1"
-
-// Create HTTPS agent for fetch requests
-const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
-})
-
-async function getToken() {
-    try {
-        core.info("Attempting to authenticate with ArgoCD using curl...")
-        
-        const curlCommand = `curl -k -s -H "Content-Type: application/json" -d '{"username":"admin","password":"NC3m8MoIaZ7li8ln"}' ${API_BASE_URL}/session`
-        
-        core.info(`Executing: ${curlCommand.replace('NC3m8MoIaZ7li8ln', '***')}`)
-        
-        const { stdout, stderr } = await execAsync(curlCommand)
-        
-        if (stderr) {
-            core.error(`Curl stderr: ${stderr}`)
-        }
-        
-        if (!stdout) {
-            throw new Error("No response from curl command")
-        }
-        
-        core.info(`Curl response: ${stdout}`)
-        
-        const data = JSON.parse(stdout)
-        
-        if (!data.token) {
-            throw new Error("No token in response")
-        }
-        
-        core.info("Authentication successful with curl")
-        return data.token
-        
-    } catch (error) {
-        core.error(`Authentication failed: ${error.message}`)
-        throw new Error(`Failed to get token: ${error.message}`)
+    // Autenticar no ArgoCD
+    const authToken = await authenticateArgoCD(argocdServer, argocdUsername, argocdPassword);
+    
+    // Verificar se a aplicação já existe
+    const applicationExists = await checkApplicationExists(argocdServer, authToken, nomeAplicacao);
+    
+    let applicationCreated = false;
+    
+    if (applicationExists) {
+      core.info(`Aplicação '${nomeAplicacao}' já existe no ArgoCD`);
+    } else {
+      core.info(`Aplicação '${nomeAplicacao}' não existe. Criando...`);
+      await createApplication(argocdServer, authToken, {
+        name: nomeAplicacao,
+        namespace: namespace,
+        repoUrl: repoUrl,
+        path: path,
+        targetRevision: targetRevision
+      });
+      applicationCreated = true;
+      core.info(`Aplicação '${nomeAplicacao}' criada com sucesso!`);
     }
+
+    // Definir outputs
+    core.setOutput('application-created', applicationCreated.toString());
+    core.setOutput('application-name', nomeAplicacao);
+
+  } catch (error) {
+    core.setFailed(`Erro na action: ${error.message}`);
+  }
 }
 
-async function getAppByName(appName, token) {
-    try {
-        core.info(`Fetching application: ${appName}`)
-        
-        const response = await fetch(`${API_BASE_URL}/applications/${appName}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'ArgoCD-GitHub-Action/1.0'
-            },
-            agent: httpsAgent
-        })
-        
-        if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`)
-        }
-        
-        const data = await response.json()
-        core.info("Application data retrieved successfully")
-        return data
-        
-    } catch (error) {
-        core.error(`Failed to get application: ${error.message}`)
-        throw new Error(`Failed to get application ${appName}: ${error.message}`)
+async function authenticateArgoCD(server, username, password) {
+  try {
+    core.info('Autenticando no ArgoCD...');
+    
+    const authUrl = `${server}/api/v1/session`;
+    const authData = {
+      username: username,
+      password: password
+    };
+
+    const response = await axios.post(authUrl, authData, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      // Ignorar certificados SSL auto-assinados em desenvolvimento
+      httpsAgent: new (require('https').Agent)({
+        rejectUnauthorized: false
+      })
+    });
+
+    const token = response.data.token;
+    core.info('Autenticação realizada com sucesso');
+    
+    return token;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(`Erro na autenticação: ${error.response.status} - ${error.response.data.message || error.response.statusText}`);
     }
+    throw new Error(`Erro na autenticação: ${error.message}`);
+  }
 }
 
-async function main() {
-    try {
-        const appName = core.getInput("nome-aplicacao")
-        const token = await getToken()
-        
-        if (!appName) {
-            throw new Error("Application name is required")
-        }
-        
-        if (!token) {
-            throw new Error("ARGOCD_TOKEN secret is required")
-        }
-        
-        core.info(`Getting information for application: ${appName}`)
-        
-        const appInfo = await getAppByName(appName, token)
-        
-        core.info(`Application info: ${JSON.stringify(appInfo, null, 2)}`)
-        
-        // Set the current time as an output variable
-        const time = new Date().toTimeString()
-        core.setOutput("time", time)
-        
-        core.info("Action completed successfully")
-        
-    } catch (error) {
-        core.setFailed(error.message)
+async function checkApplicationExists(server, token, applicationName) {
+  try {
+    core.info(`Verificando se aplicação '${applicationName}' existe...`);
+    
+    const appUrl = `${server}/api/v1/applications/${applicationName}`;
+    
+    const response = await axios.get(appUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new (require('https').Agent)({
+        rejectUnauthorized: false
+      })
+    });
+
+    return response.status === 200;
+  } catch (error) {
+    if (error.response && error.response.status === 404) {
+      return false;
     }
+    throw new Error(`Erro ao verificar aplicação: ${error.message}`);
+  }
 }
 
-main()
+async function createApplication(server, token, appConfig) {
+  try {
+    core.info(`Criando aplicação '${appConfig.name}'...`);
+    
+    const createUrl = `${server}/api/v1/applications`;
+    
+    const applicationSpec = {
+      metadata: {
+        name: appConfig.name,
+        namespace: 'argocd' // Namespace do ArgoCD, não da aplicação
+      },
+      spec: {
+        project: 'default',
+        source: {
+          repoURL: appConfig.repoUrl,
+          targetRevision: appConfig.targetRevision,
+          path: appConfig.path
+        },
+        destination: {
+          server: 'https://kubernetes.default.svc',
+          namespace: appConfig.namespace
+        },
+        syncPolicy: {
+          automated: {
+            prune: true,
+            selfHeal: true
+          },
+          syncOptions: [
+            'CreateNamespace=true'
+          ]
+        }
+      }
+    };
 
+    const response = await axios.post(createUrl, applicationSpec, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new (require('https').Agent)({
+        rejectUnauthorized: false
+      })
+    });
+
+    if (response.status === 200 || response.status === 201) {
+      core.info(`Aplicação '${appConfig.name}' criada com sucesso`);
+      return response.data;
+    } else {
+      throw new Error(`Resposta inesperada: ${response.status}`);
+    }
+  } catch (error) {
+    if (error.response) {
+      throw new Error(`Erro ao criar aplicação: ${error.response.status} - ${error.response.data.message || JSON.stringify(error.response.data)}`);
+    }
+    throw new Error(`Erro ao criar aplicação: ${error.message}`);
+  }
+}
+
+// Executar a action
+run();

@@ -1,18 +1,11 @@
-name: Hello World
-description: Greet someone and record the time
+name: ArgoCD Deploy Action
+description: Cria uma aplicação no ArgoCD caso ela não exista
 
 inputs:
   nome-aplicacao: 
     description: Nome da aplicação que vai fazer deploy
     required: true
-    default: World
 
-  ARGOCD_TOKEN:
-    description: Token de autenticação para o argocd
-
-outputs:
-  time: 
-    description: The time we greeted you
 
 runs:
   using: node20
