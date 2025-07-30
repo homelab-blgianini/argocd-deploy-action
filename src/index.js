@@ -1,6 +1,10 @@
 import * as core from "@actions/core"
 import * as github from "@actions/github"
 import https from "https"
+import { exec } from "child_process"
+import { promisify } from "util"
+
+const execAsync = promisify(exec)
 
 // Configure to ignore SSL certificates (only for development)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
@@ -14,28 +18,31 @@ const httpsAgent = new https.Agent({
 
 async function getToken() {
     try {
-        core.info("Attempting to authenticate with ArgoCD...")
+        core.info("Attempting to authenticate with ArgoCD using curl...")
         
-        const response = await fetch(`${API_BASE_URL}/session`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': 'ArgoCD-GitHub-Action/1.0'
-            },
-            body: JSON.stringify({
-                username: "admin",
-                password: "NC3m8MoIaZ7li8ln"
-            }),
-            agent: httpsAgent
-        })
+        const curlCommand = `curl -k -s -H "Content-Type: application/json" -d '{"username":"admin","password":"NC3m8MoIaZ7li8ln"}' ${API_BASE_URL}/session`
         
-        if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`)
+        core.info(`Executing: ${curlCommand.replace('NC3m8MoIaZ7li8ln', '***')}`)
+        
+        const { stdout, stderr } = await execAsync(curlCommand)
+        
+        if (stderr) {
+            core.error(`Curl stderr: ${stderr}`)
         }
         
-        const data = await response.json()
-        core.info("Authentication successful")
+        if (!stdout) {
+            throw new Error("No response from curl command")
+        }
+        
+        core.info(`Curl response: ${stdout}`)
+        
+        const data = JSON.parse(stdout)
+        
+        if (!data.token) {
+            throw new Error("No token in response")
+        }
+        
+        core.info("Authentication successful with curl")
         return data.token
         
     } catch (error) {
