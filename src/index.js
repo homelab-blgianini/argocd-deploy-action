@@ -43,9 +43,8 @@ async function getAppByName(nome, token){
 }
 
 try {
-  const token = core.info(await getToken(core.getInput("token-argocd")))
 
-  core.info(await getAppByName(core.getInput("nome-aplicacao", token)))
+  core.info(await getAppByName(core.getInput("nome-aplicacao", await getToken(core.getInput("token-argocd")))))
 
   // Get the current time and set it as an output variable
   const time = new Date().toTimeString();
