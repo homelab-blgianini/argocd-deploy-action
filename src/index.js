@@ -109,9 +109,9 @@ async function createApplication(server, token, config) {
     spec: {
       project: 'default',
       source: {
-        chart: 'helm-templates',
+        chart: 'helm-template',
         repoURL: 'oci://docker.io/blgianini',
-        targetRevision: '0.0.2',
+        targetRevision: '0.0.1',
         helm: {
           valueFiles: ['values.yaml'],
           parameters: [
