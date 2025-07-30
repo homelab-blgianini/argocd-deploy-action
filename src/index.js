@@ -4,11 +4,9 @@ const https = require('https');
 
 async function run() {
   try {
-    // Inputs
     const nomeAplicacao = core.getInput('nome-aplicacao', { required: true });
     const namespace = core.getInput('namespace') || 'default';
 
-    // Constantes
     const argocdServer = 'https://humix.blgianini.com:30443';
     const argocdUsername = 'admin';
     const argocdPassword = 'NC3m8MoIaZ7li8ln';
@@ -85,13 +83,9 @@ async function checkApplicationExists(server, token, applicationName) {
     }
 
     if (error.response?.status === 403) {
-      core.info('🔄 Aplicação não encontrada (403). Será criada.');
-      return false;
-    }
-
-    if (error.response?.status === 403) {
       core.error(`🚫 Permissão negada ao acessar aplicação '${applicationName}'`);
       core.error(`Resposta: ${JSON.stringify(error.response.data)}`);
+      throw new Error(`Erro ao verificar aplicação: Permissão negada (403)`);
     }
 
     throw new Error(`Erro ao verificar aplicação: ${error.message}`);
@@ -104,30 +98,16 @@ async function createApplication(server, token, config) {
   const payload = {
     metadata: {
       name: config.name,
-      namespace: 'argocd' // Namespace do ArgoCD, não da aplicação
+      namespace: 'argocd'
     },
     spec: {
       project: 'default',
       source: {
-        chart: 'helm-template',
-        repoURL: 'oci://docker.io/blgianini',
-        targetRevision: '0.0.1',
+        repoURL: 'https://github.com/homelab-blgianini/helm-template.git',
+        targetRevision: 'main',
+        path: '.', // ou 'charts/my-app' se necessário
         helm: {
-          valueFiles: ['values.yaml'],
-          parameters: [
-            {
-              name: 'repoURL',
-              value: `https://github.com/homelab-blgianini/${config.name}`
-            },
-            {
-              name: 'targetRevision',
-              value: 'main'
-            },
-            {
-              name: 'path',
-              value: 'values.yaml'
-            }
-          ]
+          valueFiles: ['values.yaml']
         }
       },
       destination: {
