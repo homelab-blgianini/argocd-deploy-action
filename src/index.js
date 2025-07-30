@@ -2,8 +2,6 @@ import * as core from "@actions/core"
 import * as github from "@actions/github"
 import axios from "axios"
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
 
 async function getToken(senha){
     let headersList = {
@@ -21,6 +19,7 @@ async function getToken(senha){
     data: bodyContent,
     }
 
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
     let response = await axios.request(reqOptions);
     return response.data.token
 }
@@ -38,6 +37,7 @@ async function getAppByName(nome, token){
     headers: headersList,
   }
 
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   let response = await axios.request(reqOptions);
   return response.data
 }
