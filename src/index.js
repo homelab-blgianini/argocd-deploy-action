@@ -1,17 +1,28 @@
 import * as core from "@actions/core"
 import * as github from "@actions/github"
 import axios from "axios"
+import https from "https"
 
 // Configure axios to ignore SSL certificates (only for development)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const API_BASE_URL = "https://humix.blgianini.com:30443/api/v1"
 
+// Create axios instance with custom HTTPS agent
+const axiosInstance = axios.create({
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: false,
+    keepAlive: true,
+    timeout: 10000
+  }),
+  timeout: 15000
+})
+
 async function getToken() {
     try {
-        const response = await axios.post(`${API_BASE_URL}/session`, {
+        const response = await axiosInstance.post(`${API_BASE_URL}/session`, {
             username: "admin",
-            password: "NC3m8MoIaZ7li8ln" // TODO: Move to environment variable
+            password: "NC3m8MoIaZ7li8ln"
         }, {
             headers: {
                 "Content-Type": "application/json"
@@ -26,7 +37,7 @@ async function getToken() {
 
 async function getAppByName(appName, token) {
     try {
-        const response = await axios.get(`${API_BASE_URL}/applications/${appName}`, {
+        const response = await axiosInstance.get(`${API_BASE_URL}/applications/${appName}`, {
             headers: {
                 "Authorization": `Bearer ${token}`
             }
