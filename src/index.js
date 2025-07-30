@@ -9,6 +9,12 @@ async function run() {
     const argocdUsername = "admin";
     const argocdPassword = "NC3m8MoIaZ7li8ln";
     const namespace = core.getInput('namespace') || 'default';
+    
+    // Valores padrão para repo (já que não estão sendo usados como inputs)
+    const repoUrl = 'https://github.com/homelab-blgianini/example-app.git';
+    const path = '.';
+    const targetRevision = 'HEAD';
+    
     core.info(`Iniciando processo para aplicação: ${nomeAplicacao}`);
     core.info(`Servidor ArgoCD: ${argocdServer}`);
 
@@ -49,6 +55,8 @@ async function authenticateArgoCD(server, username, password) {
     core.info('Autenticando no ArgoCD...');
     
     const authUrl = `${server}/api/v1/session`;
+    core.info(`URL de autenticação: ${authUrl}`);
+    
     const authData = {
       username: username,
       password: password
@@ -66,10 +74,13 @@ async function authenticateArgoCD(server, username, password) {
 
     const token = response.data.token;
     core.info('Autenticação realizada com sucesso');
+    core.info(`Token recebido (primeiros 10 chars): ${token.substring(0, 10)}...`);
     
     return token;
   } catch (error) {
     if (error.response) {
+      core.error(`Status da resposta: ${error.response.status}`);
+      core.error(`Dados da resposta: ${JSON.stringify(error.response.data)}`);
       throw new Error(`Erro na autenticação: ${error.response.status} - ${error.response.data.message || error.response.statusText}`);
     }
     throw new Error(`Erro na autenticação: ${error.message}`);
@@ -81,6 +92,7 @@ async function checkApplicationExists(server, token, applicationName) {
     core.info(`Verificando se aplicação '${applicationName}' existe...`);
     
     const appUrl = `${server}/api/v1/applications/${applicationName}`;
+    core.info(`URL da aplicação: ${appUrl}`);
     
     const response = await axios.get(appUrl, {
       headers: {
@@ -95,7 +107,16 @@ async function checkApplicationExists(server, token, applicationName) {
     return response.status === 200;
   } catch (error) {
     if (error.response && error.response.status === 404) {
+      core.info('Aplicação não encontrada (404) - será criada');
       return false;
+    }
+    if (error.response && error.response.status === 403) {
+      core.error(`Erro 403: Acesso negado. Verifique se o token tem permissões adequadas.`);
+      core.error(`URL tentada: ${server}/api/v1/applications/${applicationName}`);
+      core.error(`Dados da resposta: ${JSON.stringify(error.response.data)}`);
+    }
+    if (error.response) {
+      core.error(`Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`);
     }
     throw new Error(`Erro ao verificar aplicação: ${error.message}`);
   }
