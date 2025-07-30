@@ -41,7 +41,7 @@ async function getAppByName(appName, token) {
 async function main() {
     try {
         const appName = core.getInput("nome-aplicacao")
-        const token = core.getInput("ARGOCD_TOKEN")
+        const token = await getToken()
         
         if (!appName) {
             throw new Error("Application name is required")
