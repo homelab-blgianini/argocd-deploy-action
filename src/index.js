@@ -5,7 +5,7 @@ async function run() {
   try {
     // Obter inputs da action
     const nomeAplicacao = core.getInput('nome-aplicacao');
-    const argocdServer = "https://humix.blgianini.com:30443/api/v1/";
+    const argocdServer = "https://humix.blgianini.com:30443";
     const argocdUsername = "admin";
     const argocdPassword = "NC3m8MoIaZ7li8ln";
     const namespace = core.getInput('namespace') || 'default';
