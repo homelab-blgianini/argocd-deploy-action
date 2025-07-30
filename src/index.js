@@ -8,41 +8,66 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const API_BASE_URL = "https://humix.blgianini.com:30443/api/v1"
 
-// Create axios instance with custom HTTPS agent
+// Create simpler axios instance
 const axiosInstance = axios.create({
   httpsAgent: new https.Agent({
-    rejectUnauthorized: false,
-    keepAlive: false,
-    maxSockets: 1,
-    secureProtocol: 'TLSv1_2_method',
-    ciphers: 'ALL'
+    rejectUnauthorized: false
   }),
-  timeout: 30000,
-  maxRedirects: 5
+  timeout: 60000
 })
 
 async function getToken() {
     try {
         core.info("Attempting to authenticate with ArgoCD...")
         
-        const response = await axiosInstance.post(`${API_BASE_URL}/session`, {
-            username: "admin",
-            password: "NC3m8MoIaZ7li8ln"
-        }, {
+        // Try with basic fetch approach first
+        const response = await fetch(`${API_BASE_URL}/session`, {
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json",
-                "User-Agent": "ArgoCD-GitHub-Action/1.0"
-            }
+                'Content-Type': 'application/json',
+                'User-Agent': 'ArgoCD-GitHub-Action/1.0'
+            },
+            body: JSON.stringify({
+                username: "admin",
+                password: "NC3m8MoIaZ7li8ln"
+            }),
+            agent: new https.Agent({
+                rejectUnauthorized: false
+            })
         })
         
-        core.info("Authentication successful")
-        return response.data.token
-    } catch (error) {
-        core.error(`Authentication failed: ${error.message}`)
-        if (error.code) {
-            core.error(`Error code: ${error.code}`)
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
-        throw new Error(`Failed to get token: ${error.message}`)
+        
+        const data = await response.json()
+        core.info("Authentication successful")
+        return data.token
+        
+    } catch (error) {
+        core.error(`Fetch failed, trying axios: ${error.message}`)
+        
+        // Fallback to axios
+        try {
+            const response = await axiosInstance.post(`${API_BASE_URL}/session`, {
+                username: "admin",
+                password: "NC3m8MoIaZ7li8ln"
+            }, {
+                headers: {
+                    "Content-Type": "application/json",
+                    "User-Agent": "ArgoCD-GitHub-Action/1.0"
+                }
+            })
+            
+            core.info("Authentication successful with axios")
+            return response.data.token
+        } catch (axiosError) {
+            core.error(`Authentication failed: ${axiosError.message}`)
+            if (axiosError.code) {
+                core.error(`Error code: ${axiosError.code}`)
+            }
+            throw new Error(`Failed to get token: ${axiosError.message}`)
+        }
     }
 }
 
