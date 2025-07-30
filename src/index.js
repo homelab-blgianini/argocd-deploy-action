@@ -13,10 +13,6 @@ async function run() {
     const argocdUsername = 'admin';
     const argocdPassword = 'NC3m8MoIaZ7li8ln';
 
-    const repoUrl = 'https://github.com/homelab-blgianini/example-app.git';
-    const path = '.';
-    const targetRevision = 'HEAD';
-
     core.info(`Iniciando processo para aplicação: ${nomeAplicacao}`);
     core.info(`Servidor ArgoCD: ${argocdServer}`);
 
@@ -31,10 +27,7 @@ async function run() {
       core.info(`ℹ️ Aplicação '${nomeAplicacao}' não existe. Criando...`);
       await createApplication(argocdServer, token, {
         name: nomeAplicacao,
-        namespace,
-        repoUrl,
-        path,
-        targetRevision
+        namespace
       });
       applicationCreated = true;
       core.info(`✅ Aplicação '${nomeAplicacao}' criada com sucesso!`);
@@ -116,9 +109,26 @@ async function createApplication(server, token, config) {
     spec: {
       project: 'default',
       source: {
-        repoURL: config.repoUrl,
-        targetRevision: config.targetRevision,
-        path: config.path
+        chart: 'helm-templates',
+        repoURL: 'oci://docker.io/blgianini',
+        targetRevision: '0.0.2',
+        helm: {
+          valueFiles: ['values.yaml'],
+          parameters: [
+            {
+              name: 'repoURL',
+              value: `https://github.com/homelab-blgianini/${config.name}`
+            },
+            {
+              name: 'targetRevision',
+              value: 'main'
+            },
+            {
+              name: 'path',
+              value: 'values.yaml'
+            }
+          ]
+        }
       },
       destination: {
         server: 'https://kubernetes.default.svc',
