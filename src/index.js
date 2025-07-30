@@ -12,25 +12,36 @@ const API_BASE_URL = "https://humix.blgianini.com:30443/api/v1"
 const axiosInstance = axios.create({
   httpsAgent: new https.Agent({
     rejectUnauthorized: false,
-    keepAlive: true,
-    timeout: 10000
+    keepAlive: false,
+    maxSockets: 1,
+    secureProtocol: 'TLSv1_2_method',
+    ciphers: 'ALL'
   }),
-  timeout: 15000
+  timeout: 30000,
+  maxRedirects: 5
 })
 
 async function getToken() {
     try {
+        core.info("Attempting to authenticate with ArgoCD...")
+        
         const response = await axiosInstance.post(`${API_BASE_URL}/session`, {
             username: "admin",
             password: "NC3m8MoIaZ7li8ln"
         }, {
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "User-Agent": "ArgoCD-GitHub-Action/1.0"
             }
         })
         
+        core.info("Authentication successful")
         return response.data.token
     } catch (error) {
+        core.error(`Authentication failed: ${error.message}`)
+        if (error.code) {
+            core.error(`Error code: ${error.code}`)
+        }
         throw new Error(`Failed to get token: ${error.message}`)
     }
 }
