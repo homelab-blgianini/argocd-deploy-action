@@ -7,7 +7,7 @@ inputs:
     required: true
     default: World
 
-  token-argocd:
+  ARGOCD_TOKEN:
     description: Token de autenticação para o argocd
 
 outputs:

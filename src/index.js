@@ -7,7 +7,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const API_BASE_URL = "https://humix.blgianini.com:30443/api/v1"
 
-async function getToken(password) {
+async function getToken() {
     try {
         const response = await axios.post(`${API_BASE_URL}/session`, {
             username: "admin",
@@ -41,19 +41,18 @@ async function getAppByName(appName, token) {
 async function main() {
     try {
         const appName = core.getInput("nome-aplicacao")
-        const password = core.getInput("token-argocd")
+        const token = core.getInput("ARGOCD_TOKEN")
         
         if (!appName) {
             throw new Error("Application name is required")
         }
         
-        if (!password) {
-            throw new Error("ArgoCD token is required")
+        if (!token) {
+            throw new Error("ARGOCD_TOKEN secret is required")
         }
         
         core.info(`Getting information for application: ${appName}`)
         
-        const token = await getToken(password)
         const appInfo = await getAppByName(appName, token)
         
         core.info(`Application info: ${JSON.stringify(appInfo, null, 2)}`)
